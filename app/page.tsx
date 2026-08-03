@@ -15,6 +15,7 @@ import {
   ReceiptText,
   Share2,
   ShieldCheck,
+  ShoppingCart,
   WalletCards,
   X,
 } from "lucide-react";
@@ -148,7 +149,7 @@ function EmptyProject({ onCreated }: { onCreated: (project: Project) => void }) 
       .select()
       .single();
     setSaving(false);
-    if (!error && data) onCreated({ ...data, payments: [] } as Project);
+    if (!error && data) onCreated({ ...data, payments: [], expenses: [] } as Project);
   }
 
   return (
@@ -377,6 +378,7 @@ export default function Home() {
         <nav>
           <a className="active" href="#resumo"><CircleDollarSign size={19} /> Visão geral</a>
           <a href="#pagamentos"><ReceiptText size={19} /> Pagamentos</a>
+          <a href="/gastos"><ShoppingCart size={19} /> Gastos da obra</a>
           <a href="#link"><Link2 size={19} /> Link do pedreiro</a>
         </nav>
         <div className="sidebar-security">
@@ -392,7 +394,10 @@ export default function Home() {
         <header className="topbar">
           <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
           <div><p className="eyebrow">Empreitada atual</p><h1>{project.title}</h1></div>
-          <button className="button primary top-action" onClick={() => setPaymentOpen(true)}><Plus size={18} /> Registrar pagamento</button>
+          <div className="top-actions">
+            <a className="button ghost" href="/gastos"><ShoppingCart size={17} /> Ver gastos</a>
+            <button className="button primary top-action" onClick={() => setPaymentOpen(true)}><Plus size={18} /> Registrar pagamento</button>
+          </div>
         </header>
 
         <section id="resumo" className="summary-grid">

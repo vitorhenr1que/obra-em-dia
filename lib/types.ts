@@ -1,5 +1,13 @@
 export type PaymentStatus = "confirmed" | "cancelled";
 export type PaymentMethod = "PIX" | "Dinheiro" | "Transferência" | "Outro";
+export type ExpenseStatus = "active" | "cancelled";
+export type ExpenseCategory =
+  | "Material"
+  | "Mão de obra extra"
+  | "Frete"
+  | "Equipamento"
+  | "Taxas"
+  | "Outros";
 
 export type Payment = {
   id: string;
@@ -10,6 +18,22 @@ export type Payment = {
   method: PaymentMethod;
   note: string | null;
   status: PaymentStatus;
+  created_at: string;
+};
+
+export type Expense = {
+  id: string;
+  project_id: string;
+  amount_cents: number;
+  spent_on: string;
+  category: ExpenseCategory;
+  item_name: string;
+  quantity: number;
+  unit: string;
+  description: string;
+  supplier: string;
+  note: string | null;
+  status: ExpenseStatus;
   created_at: string;
 };
 
@@ -27,4 +51,5 @@ export type Project = {
   public_link_active: boolean;
   created_at: string;
   payments: Payment[];
+  expenses: Expense[];
 };

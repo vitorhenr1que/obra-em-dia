@@ -8,6 +8,8 @@ sem exigir login dele.
 
 - painel administrativo com autenticação pelo Supabase;
 - cadastro da empreitada e lançamento de pagamentos;
+- controle privado de gastos da obra, visível somente para o administrador;
+- comparação de preço unitário entre fornecedores e estimativa de economia por material;
 - cálculo automático de total pago e saldo restante;
 - comprovantes imprimíveis ou salváveis em PDF;
 - portal mobile do pedreiro acessível por link secreto;
@@ -37,5 +39,6 @@ npm test
 npm run build
 ```
 
-O schema do banco está em
-`supabase/migrations/20260729133815_create_payment_tracker_schema.sql`.
+O schema do banco está versionado em `supabase/migrations/`. A migração
+`20260803120000_create_expenses.sql` adiciona o controle de gastos com RLS
+restrita ao proprietário da obra.
