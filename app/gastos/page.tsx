@@ -11,11 +11,13 @@ import {
   Link2,
   LogOut,
   Menu,
+  Pencil,
   Plus,
   ReceiptText,
   ShieldCheck,
   ShoppingCart,
   Tags,
+  Trash2,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -46,7 +48,8 @@ function numberFromInput(value: string) {
   return Number(value.replace(/\./g, "").replace(",", "."));
 }
 
-function ExpenseModal({ onClose, onSave }: {
+function ExpenseModal({ expense, onClose, onSave }: {
+  expense?: Expense | null;
   onClose: () => void;
   onSave: (input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "note">) => Promise<boolean>;
 }) {
@@ -82,28 +85,28 @@ function ExpenseModal({ onClose, onSave }: {
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="payment-modal" role="dialog" aria-modal="true" aria-label="Registrar gasto" onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-heading">
-          <div><p className="eyebrow">Controle privado</p><h2>Registrar gasto</h2></div>
+          <div><p className="eyebrow">Controle privado</p><h2>{expense ? "Editar gasto" : "Registrar gasto"}</h2></div>
           <button className="icon-button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
         </div>
         <p className="private-notice"><ShieldCheck size={16} /> Somente o administrador da obra pode visualizar estes dados.</p>
         <form onSubmit={handleSubmit} className="stack-form">
-          <label>Valor gasto<div className="money-input"><span>R$</span><input name="amount" inputMode="decimal" placeholder="0,00" autoFocus required /></div></label>
+          <label>Valor gasto<div className="money-input"><span>R$</span><input name="amount" inputMode="decimal" placeholder="0,00" defaultValue={expense ? (expense.amount_cents / 100).toFixed(2).replace(".", ",") : ""} autoFocus required /></div></label>
           <div className="form-grid">
-            <label>Data do gasto<input name="spentOn" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label>
-            <label>Categoria<select name="category" defaultValue="Material"><option>Material</option><option>Mão de obra extra</option><option>Frete</option><option>Equipamento</option><option>Taxas</option><option>Outros</option></select></label>
+            <label>Data do gasto<input name="spentOn" type="date" defaultValue={expense?.spent_on ?? new Date().toISOString().slice(0, 10)} required /></label>
+            <label>Categoria<select name="category" defaultValue={expense?.category ?? "Material"}><option>Material</option><option>Mão de obra extra</option><option>Frete</option><option>Equipamento</option><option>Taxas</option><option>Outros</option></select></label>
           </div>
-          <label>Item do gasto<input name="itemName" list="expense-items" maxLength={80} placeholder="Ex.: Cimento" required /><datalist id="expense-items"><option value="Cimento" /><option value="Areia" /><option value="Ferragem" /><option value="Tijolos" /><option value="Tinta" /><option value="Madeira" /><option value="Elétrica" /><option value="Hidráulica" /><option value="Frete" /><option value="Equipamentos" /></datalist><span>Use sempre o mesmo nome para manter o total agrupado.</span></label>
+          <label>Item do gasto<input name="itemName" list="expense-items" maxLength={80} placeholder="Ex.: Cimento" defaultValue={expense?.item_name ?? ""} required /><datalist id="expense-items"><option value="Cimento" /><option value="Areia" /><option value="Ferragem" /><option value="Tijolos" /><option value="Tinta" /><option value="Madeira" /><option value="Elétrica" /><option value="Hidráulica" /><option value="Frete" /><option value="Equipamentos" /></datalist><span>Use sempre o mesmo nome para manter o total agrupado.</span></label>
           <div className="form-grid">
-            <label>Quantidade<input name="quantity" inputMode="decimal" placeholder="Ex.: 20" required /></label>
-            <label>Unidade<input name="unit" list="expense-units" maxLength={30} placeholder="Ex.: saco" required /><datalist id="expense-units"><option value="saco" /><option value="kg" /><option value="m³" /><option value="metro" /><option value="unidade" /><option value="litro" /><option value="caixa" /><option value="serviço" /></datalist></label>
+            <label>Quantidade<input name="quantity" inputMode="decimal" placeholder="Ex.: 20" defaultValue={expense?.quantity ?? ""} required /></label>
+            <label>Unidade<input name="unit" list="expense-units" maxLength={30} placeholder="Ex.: saco" defaultValue={expense?.unit ?? ""} required /><datalist id="expense-units"><option value="saco" /><option value="kg" /><option value="m³" /><option value="metro" /><option value="unidade" /><option value="litro" /><option value="caixa" /><option value="serviço" /></datalist></label>
           </div>
-          <label>Descrição<input name="description" maxLength={160} placeholder="Ex.: 20 sacos de cimento CP II" required /></label>
-          <label>Loja ou fornecedor<input name="supplier" maxLength={120} placeholder="Ex.: Depósito Central" required /><span>Usaremos a loja e a quantidade para comparar os preços.</span></label>
-          <label>Observação <span>(opcional)</span><textarea name="note" maxLength={500} rows={3} placeholder="Detalhes importantes sobre este gasto" /></label>
+          <label>Descrição<input name="description" maxLength={160} placeholder="Ex.: 20 sacos de cimento CP II" defaultValue={expense?.description ?? ""} required /></label>
+          <label>Loja ou fornecedor<input name="supplier" maxLength={120} placeholder="Ex.: Depósito Central" defaultValue={expense?.supplier ?? ""} required /><span>Usaremos a loja e a quantidade para comparar os preços.</span></label>
+          <label>Observação <span>(opcional)</span><textarea name="note" maxLength={500} rows={3} placeholder="Detalhes importantes sobre este gasto" defaultValue={expense?.note ?? ""} /></label>
           {error && <p className="form-error">{error}</p>}
           <div className="modal-actions">
             <button type="button" className="button ghost" onClick={onClose}>Cancelar</button>
-            <button className="button expense-button" disabled={saving}>{saving ? "Registrando..." : "Confirmar gasto"}</button>
+            <button className="button expense-button" disabled={saving}>{saving ? "Salvando..." : expense ? "Salvar alterações" : "Confirmar gasto"}</button>
           </div>
         </form>
       </section>
@@ -111,12 +114,16 @@ function ExpenseModal({ onClose, onSave }: {
   );
 }
 
-function ExpenseDetailModal({ expense, onClose, onCancel }: {
+function ExpenseDetailModal({ expense, onClose, onCancel, onEdit, onDelete }: {
   expense: Expense;
   onClose: () => void;
   onCancel: (expense: Expense) => Promise<void>;
+  onEdit: (expense: Expense) => void;
+  onDelete: (expense: Expense) => Promise<void>;
 }) {
   const [cancelling, setCancelling] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -136,12 +143,14 @@ function ExpenseDetailModal({ expense, onClose, onCancel }: {
           <div><dt>Status</dt><dd>{expense.status === "active" ? "Ativo" : "Cancelado"}</dd></div>
         </dl>
         {expense.note && <p className="receipt-note">{expense.note}</p>}
-        {expense.status === "active" && (
-          <button className="button danger wide" disabled={cancelling} onClick={async () => {
-            setCancelling(true);
-            await onCancel(expense);
-            setCancelling(false);
-          }}><Ban size={17} /> {cancelling ? "Cancelando..." : "Cancelar lançamento"}</button>
+        {confirmingDelete ? (
+          <div className="delete-confirmation"><p><strong>Excluir permanentemente?</strong><span>Este lançamento será removido e não poderá ser recuperado.</span></p><div><button className="button ghost" onClick={() => setConfirmingDelete(false)}>Voltar</button><button className="button destructive" disabled={deleting} onClick={async () => { setDeleting(true); await onDelete(expense); setDeleting(false); }}><Trash2 size={16} />{deleting ? "Excluindo..." : "Excluir"}</button></div></div>
+        ) : (
+          <div className="expense-detail-actions">
+            <button className="button ghost" onClick={() => onEdit(expense)}><Pencil size={16} /> Editar</button>
+            {expense.status === "active" && <button className="button ghost" disabled={cancelling} onClick={async () => { setCancelling(true); await onCancel(expense); setCancelling(false); }}><Ban size={16} /> {cancelling ? "Cancelando..." : "Cancelar"}</button>}
+            <button className="button delete-button" onClick={() => setConfirmingDelete(true)}><Trash2 size={16} /> Excluir</button>
+          </div>
         )}
       </section>
     </div>
@@ -154,6 +163,7 @@ export default function ExpensesPage() {
   const [project, setProject] = useState<Project | null>(isSupabaseConfigured ? null : demoProject);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -249,19 +259,35 @@ export default function ExpensesPage() {
     window.setTimeout(() => setToast(""), 2800);
   }
 
+  function openNewExpense() {
+    setEditingExpense(null);
+    setExpenseOpen(true);
+  }
+
   async function saveExpense(input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "note">) {
     if (!project) return false;
     let expense: Expense;
     if (isSupabaseConfigured) {
-      const { data, error } = await getSupabase().from("expenses").insert({ ...input, project_id: project.id }).select().single();
+      const query = editingExpense
+        ? getSupabase().from("expenses").update(input).eq("id", editingExpense.id)
+        : getSupabase().from("expenses").insert({ ...input, project_id: project.id });
+      const { data, error } = await query.select().single();
       if (error || !data) return false;
       expense = data as Expense;
+    } else if (editingExpense) {
+      expense = { ...editingExpense, ...input };
     } else {
       expense = { ...input, id: crypto.randomUUID(), project_id: project.id, status: "active", created_at: new Date().toISOString() };
     }
-    setProject({ ...project, expenses: [...project.expenses, expense] });
+    setProject({
+      ...project,
+      expenses: editingExpense
+        ? project.expenses.map((item) => item.id === expense.id ? expense : item)
+        : [...project.expenses, expense],
+    });
     setExpenseOpen(false);
-    showToast("Gasto registrado no controle privado.");
+    setEditingExpense(null);
+    showToast(editingExpense ? "Lançamento atualizado." : "Gasto registrado no controle privado.");
     return true;
   }
 
@@ -278,6 +304,20 @@ export default function ExpensesPage() {
     setProject({ ...project, expenses: project.expenses.map((item) => item.id === expense.id ? updated : item) });
     setSelectedExpense(updated);
     showToast("Lançamento cancelado e totais atualizados.");
+  }
+
+  async function deleteExpense(expense: Expense) {
+    if (!project) return;
+    if (isSupabaseConfigured) {
+      const { error } = await getSupabase().from("expenses").delete().eq("id", expense.id);
+      if (error) {
+        showToast("Não foi possível excluir o lançamento.");
+        return;
+      }
+    }
+    setProject({ ...project, expenses: project.expenses.filter((item) => item.id !== expense.id) });
+    setSelectedExpense(null);
+    showToast("Lançamento excluído permanentemente.");
   }
 
   if (!authReady || loading) return <main className="loading-screen">Carregando controle de gastos...</main>;
@@ -302,12 +342,12 @@ export default function ExpensesPage() {
         <header className="topbar expense-topbar">
           <button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
           <div><Link className="back-link" href="/"><ArrowLeft size={15} /> Painel</Link><p className="eyebrow">{project.title}</p><h1>Gastos da obra</h1></div>
-          <button className="button expense-button top-action" onClick={() => setExpenseOpen(true)}><Plus size={18} /> Registrar gasto</button>
+          <button className="button expense-button top-action" onClick={openNewExpense}><Plus size={18} /> Registrar gasto</button>
         </header>
 
         <section className="expense-intro">
           <div><span className="expense-lock"><ShieldCheck size={23} /></span><div><p className="eyebrow">Área exclusiva</p><h2>Seu controle financeiro, em um só lugar.</h2><p>Acompanhe materiais, fretes e outros custos sem compartilhar essas informações no link do pedreiro.</p></div></div>
-          <button className="button expense-button" onClick={() => setExpenseOpen(true)}><Plus size={17} /> Adicionar gasto</button>
+          <button className="button expense-button" onClick={openNewExpense}><Plus size={17} /> Adicionar gasto</button>
         </section>
 
         <section className="expense-summary-grid expense-page-summary">
@@ -378,8 +418,8 @@ export default function ExpensesPage() {
         {!isSupabaseConfigured && <div className="demo-notice"><span>Demonstração</span>Os gastos exibidos são dados de exemplo.</div>}
       </main>
 
-      {expenseOpen && <ExpenseModal onClose={() => setExpenseOpen(false)} onSave={saveExpense} />}
-      {selectedExpense && <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} onCancel={cancelExpense} />}
+      {expenseOpen && <ExpenseModal expense={editingExpense} onClose={() => { setExpenseOpen(false); setEditingExpense(null); }} onSave={saveExpense} />}
+      {selectedExpense && <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} onCancel={cancelExpense} onEdit={(expense) => { setSelectedExpense(null); setEditingExpense(expense); setExpenseOpen(true); }} onDelete={deleteExpense} />}
       {toast && <div className="toast"><Check size={18} />{toast}</div>}
     </div>
   );
