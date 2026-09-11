@@ -379,6 +379,7 @@ export default function Home() {
           <a className="active" href="#resumo"><CircleDollarSign size={19} /> Visão geral</a>
           <a href="#pagamentos"><ReceiptText size={19} /> Pagamentos</a>
           <a href="/gastos"><ShoppingCart size={19} /> Gastos da obra</a>
+          <a href="/financeiro"><WalletCards size={19} /> Cartões e parcelas</a>
           <a href="#link"><Link2 size={19} /> Link do pedreiro</a>
         </nav>
         <div className="sidebar-security">

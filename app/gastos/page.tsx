@@ -18,13 +18,14 @@ import {
   ShoppingCart,
   Tags,
   Trash2,
+  WalletCards,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { demoProject } from "@/lib/demo-data";
+import { demoCards, demoProject } from "@/lib/demo-data";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
-import type { Expense, Project } from "@/lib/types";
+import type { CreditCard, Expense, Project } from "@/lib/types";
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
@@ -48,21 +49,26 @@ function numberFromInput(value: string) {
   return Number(value.replace(/\./g, "").replace(",", "."));
 }
 
-function ExpenseModal({ expense, onClose, onSave }: {
+function ExpenseModal({ expense, cards, onClose, onSave }: {
   expense?: Expense | null;
+  cards: CreditCard[];
   onClose: () => void;
-  onSave: (input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "note">) => Promise<boolean>;
+  onSave: (input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "card_id" | "card_installments_count" | "note">) => Promise<boolean>;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [selectedCardId, setSelectedCardId] = useState(expense?.card_id ?? "");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const amount = centsFromInput(String(form.get("amount")));
     const quantity = numberFromInput(String(form.get("quantity")));
-    if (!amount || amount <= 0 || !quantity || quantity <= 0) {
-      setError("Informe um valor e uma quantidade maiores que zero.");
+    const cardId = String(form.get("cardId") || "") || null;
+    const installmentsCount = cardId ? Number(form.get("cardInstallments") || 1) : 1;
+    const installmentsMinimum = cardId === expense?.card_id ? Math.max(expense?.card_installments_paid ?? 0, 1) : 1;
+    if (!amount || amount <= 0 || !quantity || quantity <= 0 || !Number.isInteger(installmentsCount) || installmentsCount < installmentsMinimum || installmentsCount > 48) {
+      setError("Revise o valor, a quantidade e o número de parcelas (entre 1 e 48).");
       return;
     }
     setSaving(true);
@@ -75,6 +81,8 @@ function ExpenseModal({ expense, onClose, onSave }: {
       unit: String(form.get("unit")).trim().toLocaleLowerCase("pt-BR"),
       description: String(form.get("description")).trim(),
       supplier: String(form.get("supplier")).trim(),
+      card_id: cardId,
+      card_installments_count: installmentsCount,
       note: String(form.get("note") || "").trim() || null,
     });
     if (!saved) setError("Não foi possível registrar o gasto. Tente novamente.");
@@ -102,6 +110,8 @@ function ExpenseModal({ expense, onClose, onSave }: {
           </div>
           <label>Descrição<input name="description" maxLength={160} placeholder="Ex.: 20 sacos de cimento CP II" defaultValue={expense?.description ?? ""} required /></label>
           <label>Loja ou fornecedor<input name="supplier" maxLength={120} placeholder="Ex.: Depósito Central" defaultValue={expense?.supplier ?? ""} required /><span>Usaremos a loja e a quantidade para comparar os preços.</span></label>
+          <label>Cartão usado <span>(opcional)</span><select name="cardId" value={selectedCardId} onChange={(event) => setSelectedCardId(event.target.value)}><option value="">Não associar a um cartão</option>{cards.map((card) => <option value={card.id} key={card.id}>{card.name} •••• {card.last_four}</option>)}</select><span>O valor entra na próxima fatura e reduz o limite disponível.</span></label>
+          {selectedCardId && <label>Número de parcelas<input name="cardInstallments" type="number" min={selectedCardId === expense?.card_id ? Math.max(expense?.card_installments_paid ?? 0, 1) : 1} max="48" defaultValue={expense?.card_installments_count ?? 1} required /><span>{selectedCardId === expense?.card_id && expense?.card_installments_paid ? `${expense.card_installments_paid} já ${expense.card_installments_paid === 1 ? "foi paga" : "foram pagas"}; o total não pode ser menor.` : "Use 1 para uma compra à vista."}</span></label>}
           <label>Observação <span>(opcional)</span><textarea name="note" maxLength={500} rows={3} placeholder="Detalhes importantes sobre este gasto" defaultValue={expense?.note ?? ""} /></label>
           {error && <p className="form-error">{error}</p>}
           <div className="modal-actions">
@@ -114,8 +124,9 @@ function ExpenseModal({ expense, onClose, onSave }: {
   );
 }
 
-function ExpenseDetailModal({ expense, onClose, onCancel, onEdit, onDelete }: {
+function ExpenseDetailModal({ expense, card, onClose, onCancel, onEdit, onDelete }: {
   expense: Expense;
+  card?: CreditCard;
   onClose: () => void;
   onCancel: (expense: Expense) => Promise<void>;
   onEdit: (expense: Expense) => void;
@@ -140,6 +151,9 @@ function ExpenseDetailModal({ expense, onClose, onCancel, onEdit, onDelete }: {
           <div><dt>Quantidade</dt><dd>{expense.quantity} {expense.unit}</dd></div>
           <div><dt>Preço unitário</dt><dd>{formatMoney(Math.round(expense.amount_cents / expense.quantity))} / {expense.unit}</dd></div>
           <div><dt>Loja ou fornecedor</dt><dd>{expense.supplier}</dd></div>
+          <div><dt>Cartão</dt><dd>{card ? `${card.name} •••• ${card.last_four}` : "Não associado"}</dd></div>
+          {card && <div><dt>Parcelas</dt><dd>{expense.card_installments_paid} de {expense.card_installments_count} pagas · faltam {expense.card_installments_count - expense.card_installments_paid}</dd></div>}
+          {card && <div><dt>Situação na fatura</dt><dd>{expense.card_paid_on ? `Concluído em ${formatDate(expense.card_paid_on)}` : "Aguardando a próxima parcela"}</dd></div>}
           <div><dt>Status</dt><dd>{expense.status === "active" ? "Ativo" : "Cancelado"}</dd></div>
         </dl>
         {expense.note && <p className="receipt-note">{expense.note}</p>}
@@ -161,6 +175,7 @@ export default function ExpensesPage() {
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [authenticated, setAuthenticated] = useState(!isSupabaseConfigured);
   const [project, setProject] = useState<Project | null>(isSupabaseConfigured ? null : demoProject);
+  const [cards, setCards] = useState<CreditCard[]>(isSupabaseConfigured ? [] : demoCards);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -184,14 +199,12 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !authenticated) return;
-    getSupabase()
-      .from("projects")
-      .select("*, payments(*), expenses(*)")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        setProject(data as Project | null);
+    Promise.all([
+      getSupabase().from("projects").select("*, payments(*), expenses(*)").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      getSupabase().from("credit_cards").select("*").eq("status", "active").order("created_at"),
+    ]).then(([projectResult, cardResult]) => {
+        setProject(projectResult.data as Project | null);
+        setCards((cardResult.data ?? []) as CreditCard[]);
         setLoading(false);
       });
   }, [authenticated]);
@@ -264,20 +277,26 @@ export default function ExpensesPage() {
     setExpenseOpen(true);
   }
 
-  async function saveExpense(input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "note">) {
+  async function saveExpense(input: Pick<Expense, "amount_cents" | "spent_on" | "category" | "item_name" | "quantity" | "unit" | "description" | "supplier" | "card_id" | "card_installments_count" | "note">) {
     if (!project) return false;
     let expense: Expense;
+    const keepsCardProgress = Boolean(editingExpense && input.card_id && input.card_id === editingExpense.card_id);
+    const normalizedInput = {
+      ...input,
+      card_installments_paid: keepsCardProgress ? editingExpense?.card_installments_paid ?? 0 : 0,
+      card_paid_on: keepsCardProgress ? editingExpense?.card_paid_on ?? null : null,
+    };
     if (isSupabaseConfigured) {
       const query = editingExpense
-        ? getSupabase().from("expenses").update(input).eq("id", editingExpense.id)
-        : getSupabase().from("expenses").insert({ ...input, project_id: project.id });
+        ? getSupabase().from("expenses").update(normalizedInput).eq("id", editingExpense.id)
+        : getSupabase().from("expenses").insert({ ...normalizedInput, project_id: project.id });
       const { data, error } = await query.select().single();
       if (error || !data) return false;
       expense = data as Expense;
     } else if (editingExpense) {
-      expense = { ...editingExpense, ...input };
+      expense = { ...editingExpense, ...normalizedInput };
     } else {
-      expense = { ...input, id: crypto.randomUUID(), project_id: project.id, status: "active", created_at: new Date().toISOString() };
+      expense = { ...normalizedInput, id: crypto.randomUUID(), project_id: project.id, status: "active", created_at: new Date().toISOString() };
     }
     setProject({
       ...project,
@@ -332,6 +351,7 @@ export default function ExpensesPage() {
           <Link href="/#resumo"><CircleDollarSign size={19} /> Visão geral</Link>
           <Link href="/#pagamentos"><ReceiptText size={19} /> Pagamentos</Link>
           <Link className="active" href="/gastos"><ShoppingCart size={19} /> Gastos da obra</Link>
+          <Link href="/financeiro"><WalletCards size={19} /> Cartões e parcelas</Link>
           <Link href="/#link"><Link2 size={19} /> Link do pedreiro</Link>
         </nav>
         <div className="sidebar-security"><ShieldCheck size={19} /><div><strong>Controle privado</strong><span>Estes gastos não aparecem para o pedreiro.</span></div></div>
@@ -407,7 +427,7 @@ export default function ExpensesPage() {
             {sortedExpenses.map((expense) => (
               <button className={`payment-row expense-row ${expense.status === "cancelled" ? "cancelled" : ""}`} key={expense.id} onClick={() => setSelectedExpense(expense)}>
                 <span className="payment-icon"><ShoppingCart size={18} /></span>
-                <span className="payment-main"><strong>{expense.description}</strong><small>{formatDate(expense.spent_on)} · {expense.quantity} {expense.unit} · {expense.item_name} · {expense.supplier}</small></span>
+                <span className="payment-main"><strong>{expense.description}</strong><small>{formatDate(expense.spent_on)} · {expense.quantity} {expense.unit} · {expense.item_name} · {expense.supplier}{expense.card_id ? ` · ${expense.card_installments_count}x no ${cards.find((card) => card.id === expense.card_id)?.name ?? "cartão"}` : ""}</small></span>
                 <span className="expense-amount">{expense.status === "cancelled" ? "Cancelado" : formatMoney(expense.amount_cents)}</span>
                 <ChevronRight size={18} />
               </button>
@@ -418,8 +438,8 @@ export default function ExpensesPage() {
         {!isSupabaseConfigured && <div className="demo-notice"><span>Demonstração</span>Os gastos exibidos são dados de exemplo.</div>}
       </main>
 
-      {expenseOpen && <ExpenseModal expense={editingExpense} onClose={() => { setExpenseOpen(false); setEditingExpense(null); }} onSave={saveExpense} />}
-      {selectedExpense && <ExpenseDetailModal expense={selectedExpense} onClose={() => setSelectedExpense(null)} onCancel={cancelExpense} onEdit={(expense) => { setSelectedExpense(null); setEditingExpense(expense); setExpenseOpen(true); }} onDelete={deleteExpense} />}
+      {expenseOpen && <ExpenseModal expense={editingExpense} cards={cards} onClose={() => { setExpenseOpen(false); setEditingExpense(null); }} onSave={saveExpense} />}
+      {selectedExpense && <ExpenseDetailModal expense={selectedExpense} card={cards.find((card) => card.id === selectedExpense.card_id)} onClose={() => setSelectedExpense(null)} onCancel={cancelExpense} onEdit={(expense) => { setSelectedExpense(null); setEditingExpense(expense); setExpenseOpen(true); }} onDelete={deleteExpense} />}
       {toast && <div className="toast"><Check size={18} />{toast}</div>}
     </div>
   );

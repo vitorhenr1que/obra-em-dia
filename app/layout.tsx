@@ -21,9 +21,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: baseUrl,
-    title: "Obra em Dia | Pagamentos da empreitada",
+    title: "Obra em Dia | Gestão financeira da obra",
     description:
-      "Registre pagamentos, acompanhe o saldo e compartilhe comprovantes da empreitada.",
+      "Registre pagamentos e gastos, acompanhe cartões, parcelas e compromissos recorrentes.",
     icons: {
       icon: "/favicon.svg",
       shortcut: "/favicon.svg",

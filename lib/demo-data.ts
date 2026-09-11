@@ -1,4 +1,4 @@
-import type { Project } from "./types";
+import type { CardPurchase, CreditCard, Project, RecurringExpense } from "./types";
 
 export const demoProject: Project = {
   id: "3d53644f-c9a1-46d4-85a9-bae398814976",
@@ -60,6 +60,10 @@ export const demoProject: Project = {
       unit: "saco",
       description: "20 sacos de cimento CP II",
       supplier: "Depósito Central",
+      card_id: null,
+      card_installments_count: 1,
+      card_installments_paid: 0,
+      card_paid_on: null,
       note: "Materiais para a etapa de reboco",
       status: "active",
       created_at: "2026-07-02T11:00:00.000Z",
@@ -75,6 +79,10 @@ export const demoProject: Project = {
       unit: "serviço",
       description: "Entrega dos materiais",
       supplier: "Fretes Bahia",
+      card_id: null,
+      card_installments_count: 1,
+      card_installments_paid: 0,
+      card_paid_on: null,
       note: null,
       status: "active",
       created_at: "2026-07-18T15:30:00.000Z",
@@ -90,6 +98,10 @@ export const demoProject: Project = {
       unit: "m³",
       description: "Dois metros de areia lavada",
       supplier: "Depósito Central",
+      card_id: null,
+      card_installments_count: 1,
+      card_installments_paid: 0,
+      card_paid_on: null,
       note: null,
       status: "active",
       created_at: "2026-07-10T10:00:00.000Z",
@@ -105,6 +117,10 @@ export const demoProject: Project = {
       unit: "kg",
       description: "Vergalhões para a estrutura",
       supplier: "Casa do Ferro",
+      card_id: null,
+      card_installments_count: 1,
+      card_installments_paid: 0,
+      card_paid_on: null,
       note: null,
       status: "active",
       created_at: "2026-07-22T09:15:00.000Z",
@@ -120,9 +136,24 @@ export const demoProject: Project = {
       unit: "saco",
       description: "15 sacos de cimento CP II",
       supplier: "Constrular",
+      card_id: null,
+      card_installments_count: 1,
+      card_installments_paid: 0,
+      card_paid_on: null,
       note: null,
       status: "active",
       created_at: "2026-07-25T13:40:00.000Z",
     },
   ],
 };
+
+export const demoCards: CreditCard[] = [];
+
+export const demoPurchases: CardPurchase[] = [];
+
+export const demoRecurringExpenses: RecurringExpense[] = [
+  { id: "demo-rec-1", user_id: "demo-owner", card_id: null, name: "Netflix", category: "Assinatura", amount_cents: 5590, billing_day: 8, status: "active", created_at: "2026-01-10T12:00:00.000Z" },
+  { id: "demo-rec-2", user_id: "demo-owner", card_id: null, name: "Adobe Creative Cloud", category: "Assinatura", amount_cents: 12400, billing_day: 14, status: "active", created_at: "2026-01-10T12:00:00.000Z" },
+  { id: "demo-rec-3", user_id: "demo-owner", card_id: null, name: "Reserva de emergência", category: "Investimento", amount_cents: 100000, billing_day: 5, status: "active", created_at: "2026-01-10T12:00:00.000Z" },
+  { id: "demo-rec-4", user_id: "demo-owner", card_id: null, name: "Internet residencial", category: "Essencial", amount_cents: 12990, billing_day: 12, status: "active", created_at: "2026-01-10T12:00:00.000Z" },
+];

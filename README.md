@@ -10,6 +10,8 @@ sem exigir login dele.
 - cadastro da empreitada e lançamento de pagamentos;
 - controle privado de gastos da obra, visível somente para o administrador;
 - comparação de preço unitário entre fornecedores e estimativa de economia por material;
+- controle de cartões, compras parceladas, limite disponível e pagamento de fatura;
+- organização de assinaturas, investimentos e gastos essenciais recorrentes;
 - cálculo automático de total pago e saldo restante;
 - comprovantes imprimíveis ou salváveis em PDF;
 - portal mobile do pedreiro acessível por link secreto;
