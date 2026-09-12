@@ -11,6 +11,7 @@ import {
   Link2,
   LogOut,
   Menu,
+  Pencil,
   Plus,
   ReceiptText,
   Share2,
@@ -177,7 +178,12 @@ function EmptyProject({ onCreated }: { onCreated: (project: Project) => void }) 
   );
 }
 
-function ReceiptModal({ project, payment, onClose }: { project: Project; payment: Payment; onClose: () => void }) {
+function ReceiptModal({ project, payment, onClose, onEdit }: {
+  project: Project;
+  payment: Payment;
+  onClose: () => void;
+  onEdit: (payment: Payment) => void;
+}) {
   const paidUntilReceipt = project.payments
     .filter((item) => item.status === "confirmed" && item.paid_on <= payment.paid_on)
     .reduce((total, item) => total + item.amount_cents, 0);
@@ -204,18 +210,20 @@ function ReceiptModal({ project, payment, onClose }: { project: Project; payment
         {payment.note && <p className="receipt-note">{payment.note}</p>}
         <div className="receipt-code"><span>Número do comprovante</span><strong>{payment.receipt_code}</strong></div>
         <p className="receipt-footnote">Este comprovante registra um pagamento da empreitada descrita acima.</p>
-        <button className="button dark wide no-print" onClick={() => window.print()}>
-          <ReceiptText size={18} /> Imprimir ou salvar em PDF
-        </button>
+        <div className="modal-actions no-print">
+          <button className="button ghost" onClick={() => onEdit(payment)}><Pencil size={17} /> Editar lançamento</button>
+          <button className="button dark" onClick={() => window.print()}><ReceiptText size={18} /> Imprimir ou salvar em PDF</button>
+        </div>
       </section>
     </div>
   );
 }
 
-function PaymentModal({ balance, onClose, onSave }: {
+function PaymentModal({ balance, payment, onClose, onSave }: {
   balance: number;
+  payment?: Payment | null;
   onClose: () => void;
-  onSave: (input: Pick<Payment, "amount_cents" | "paid_on" | "method" | "note">) => Promise<void>;
+  onSave: (input: Pick<Payment, "amount_cents" | "paid_on" | "method" | "note">) => Promise<boolean>;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -229,37 +237,38 @@ function PaymentModal({ balance, onClose, onSave }: {
       return;
     }
     setSaving(true);
-    await onSave({
+    const saved = await onSave({
       amount_cents: amount,
       paid_on: String(form.get("paidOn")),
       method: String(form.get("method")) as Payment["method"],
-      note: String(form.get("note") || ""),
+      note: String(form.get("note") || "").trim() || null,
     });
+    if (!saved) setError("Não foi possível salvar o pagamento. Tente novamente.");
     setSaving(false);
   }
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="payment-modal" role="dialog" aria-modal="true" aria-label="Registrar pagamento" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="payment-modal" role="dialog" aria-modal="true" aria-label={payment ? "Editar pagamento" : "Registrar pagamento"} onMouseDown={(event) => event.stopPropagation()}>
         <div className="modal-heading">
-          <div><p className="eyebrow">Novo lançamento</p><h2>Registrar pagamento</h2></div>
+          <div><p className="eyebrow">{payment ? "Editar lançamento" : "Novo lançamento"}</p><h2>{payment ? "Editar pagamento" : "Registrar pagamento"}</h2></div>
           <button className="icon-button" onClick={onClose} aria-label="Fechar"><X size={20} /></button>
         </div>
-        <p className="available-balance">Saldo atual: <strong>{formatMoney(balance)}</strong></p>
+        <p className="available-balance">{payment ? "Limite disponível para este lançamento" : "Saldo atual"}: <strong>{formatMoney(balance)}</strong></p>
         <form onSubmit={handleSubmit} className="stack-form">
           <label>
             Valor pago
-            <div className="money-input"><span>R$</span><input name="amount" inputMode="decimal" placeholder="0,00" autoFocus required /></div>
+            <div className="money-input"><span>R$</span><input name="amount" inputMode="decimal" placeholder="0,00" defaultValue={payment ? (payment.amount_cents / 100).toFixed(2).replace(".", ",") : ""} autoFocus required /></div>
           </label>
           <div className="form-grid">
-            <label>Data do pagamento<input name="paidOn" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label>
-            <label>Forma de pagamento<select name="method" defaultValue="PIX"><option>PIX</option><option>Dinheiro</option><option>Transferência</option><option>Outro</option></select></label>
+            <label>Data do pagamento<input name="paidOn" type="date" defaultValue={payment?.paid_on ?? new Date().toISOString().slice(0, 10)} required /></label>
+            <label>Forma de pagamento<select name="method" defaultValue={payment?.method ?? "PIX"}><option>PIX</option><option>Dinheiro</option><option>Transferência</option><option>Outro</option></select></label>
           </div>
-          <label>Observação <span>(opcional)</span><textarea name="note" rows={3} placeholder="Ex.: Segunda parcela da empreitada" /></label>
+          <label>Observação <span>(opcional)</span><textarea name="note" rows={3} placeholder="Ex.: Segunda parcela da empreitada" defaultValue={payment?.note ?? ""} /></label>
           {error && <p className="form-error">{error}</p>}
           <div className="modal-actions">
             <button type="button" className="button ghost" onClick={onClose}>Cancelar</button>
-            <button className="button primary" disabled={saving}>{saving ? "Registrando..." : "Confirmar pagamento"}</button>
+            <button className="button primary" disabled={saving}>{saving ? "Salvando..." : payment ? "Salvar alterações" : "Confirmar pagamento"}</button>
           </div>
         </form>
       </section>
@@ -273,6 +282,7 @@ export default function Home() {
   const [project, setProject] = useState<Project | null>(isSupabaseConfigured ? null : demoProject);
   const [loadingProject, setLoadingProject] = useState(isSupabaseConfigured);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [toast, setToast] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -337,16 +347,34 @@ export default function Home() {
     window.open(`https://wa.me/?text=${text}`, "_blank", "noopener,noreferrer");
   }
 
+  function openNewPayment() {
+    setEditingPayment(null);
+    setPaymentOpen(true);
+  }
+
+  function openPaymentEdit(payment: Payment) {
+    setSelectedPayment(null);
+    setEditingPayment(payment);
+    setPaymentOpen(true);
+  }
+
+  function closePaymentModal() {
+    setPaymentOpen(false);
+    setEditingPayment(null);
+  }
+
   async function savePayment(input: Pick<Payment, "amount_cents" | "paid_on" | "method" | "note">) {
-    if (!project) return;
+    if (!project) return false;
     let payment: Payment;
     if (isSupabaseConfigured) {
-      const { data, error } = await getSupabase().from("payments").insert({ ...input, project_id: project.id }).select().single();
-      if (error || !data) {
-        showToast("Não foi possível registrar o pagamento.");
-        return;
-      }
+      const query = editingPayment
+        ? getSupabase().from("payments").update(input).eq("id", editingPayment.id).eq("project_id", project.id)
+        : getSupabase().from("payments").insert({ ...input, project_id: project.id });
+      const { data, error } = await query.select().single();
+      if (error || !data) return false;
       payment = data as Payment;
+    } else if (editingPayment) {
+      payment = { ...editingPayment, ...input };
     } else {
       payment = {
         ...input,
@@ -357,10 +385,16 @@ export default function Home() {
         created_at: new Date().toISOString(),
       };
     }
-    setProject({ ...project, payments: [...project.payments, payment] });
-    setPaymentOpen(false);
-    setSelectedPayment(payment);
-    showToast("Pagamento registrado e saldo atualizado.");
+    setProject({
+      ...project,
+      payments: editingPayment
+        ? project.payments.map((item) => item.id === payment.id ? payment : item)
+        : [...project.payments, payment],
+    });
+    closePaymentModal();
+    if (!editingPayment) setSelectedPayment(payment);
+    showToast(editingPayment ? "Lançamento atualizado e saldo recalculado." : "Pagamento registrado e saldo atualizado.");
+    return true;
   }
 
   if (!authReady) return <main className="loading-screen">Preparando seu painel...</main>;
@@ -397,7 +431,7 @@ export default function Home() {
           <div><p className="eyebrow">Empreitada atual</p><h1>{project.title}</h1></div>
           <div className="top-actions">
             <a className="button ghost" href="/gastos"><ShoppingCart size={17} /> Ver gastos</a>
-            <button className="button primary top-action" onClick={() => setPaymentOpen(true)}><Plus size={18} /> Registrar pagamento</button>
+            <button className="button primary top-action" onClick={openNewPayment}><Plus size={18} /> Registrar pagamento</button>
           </div>
         </header>
 
@@ -446,9 +480,9 @@ export default function Home() {
         {!isSupabaseConfigured && <div className="demo-notice"><span>Demonstração</span>Estes dados são de exemplo. A conexão Supabase está pronta para receber as credenciais do novo projeto.</div>}
       </main>
 
-      {paymentOpen && <PaymentModal balance={balance} onClose={() => setPaymentOpen(false)} onSave={savePayment} />}
-      {selectedPayment && <ReceiptModal project={project} payment={selectedPayment} onClose={() => setSelectedPayment(null)} />}
-      {toast && <div className="toast"><Check size={18} />{toast}</div>}
+      {paymentOpen && <PaymentModal balance={balance + (editingPayment?.status === "confirmed" ? editingPayment.amount_cents : 0)} payment={editingPayment} onClose={closePaymentModal} onSave={savePayment} />}
+      {selectedPayment && <ReceiptModal project={project} payment={selectedPayment} onClose={() => setSelectedPayment(null)} onEdit={openPaymentEdit} />}
+      {toast && <div className="toast" role="status" aria-live="polite"><Check size={18} />{toast}</div>}
     </div>
   );
 }
