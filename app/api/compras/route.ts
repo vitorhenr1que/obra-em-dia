@@ -39,10 +39,16 @@ function normalizeTime(value: unknown) {
 
 export async function POST(request: Request) {
   let body: PurchasePayload;
+  let rawPayload: unknown;
 
   try {
-    body = unwrapPayload(await request.json());
-  } catch {
+    const rawBody = await request.text();
+    console.info("[POST /api/compras] Corpo recebido:", rawBody);
+    rawPayload = JSON.parse(rawBody) as unknown;
+    body = unwrapPayload(rawPayload);
+    console.info("[POST /api/compras] Payload extraído:", body);
+  } catch (error) {
+    console.error("[POST /api/compras] JSON inválido:", error);
     return NextResponse.json({ error: "O corpo da requisição precisa ser um JSON válido." }, { status: 400 });
   }
 
@@ -53,6 +59,17 @@ export async function POST(request: Request) {
   const hora = normalizeTime(body.hora);
 
   if (!banco || !cartao || !Number.isFinite(valor) || valor <= 0 || !data || !hora) {
+    console.warn("[POST /api/compras] Falha na validação:", {
+      payloadRecebido: rawPayload,
+      camposExtraidos: body,
+      validacao: {
+        banco: Boolean(banco),
+        valor: Number.isFinite(valor) && valor > 0,
+        cartao: Boolean(cartao),
+        data: Boolean(data),
+        hora: Boolean(hora),
+      },
+    });
     return NextResponse.json({
       error: "Payload inválido. Envie banco, valor, cartao, data (DD/MM/AAAA ou AAAA-MM-DD) e hora curta (HH:mm).",
     }, { status: 422 });
