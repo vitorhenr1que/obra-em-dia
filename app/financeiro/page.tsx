@@ -18,7 +18,6 @@ import {
   Plus,
   ReceiptText,
   RefreshCw,
-  Send,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
@@ -35,7 +34,7 @@ import type { CardPurchase, CreditCard, Expense, RecurringExpense } from "@/lib/
 import "./financeiro.css";
 
 type FormKind = "card" | "purchase" | "recurring";
-type Modal = FormKind | "api-purchase" | "invoice" | "delete-card" | "delete-purchase" | "delete-recurring" | null;
+type Modal = FormKind | "invoice" | "delete-card" | "delete-purchase" | "delete-recurring" | null;
 type View = "overview" | "recurring" | "report";
 
 const monthLabel = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date());
@@ -126,71 +125,6 @@ function FinancialForm({ kind, cards, selectedCardId, editingCard, editingPurcha
         </>}
         {error && <p className="form-error">{error}</p>}
         <div className="modal-actions"><button type="button" className="button ghost" onClick={onClose}>Cancelar</button><button className="button finance-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button></div>
-      </form>
-    </ModalFrame>
-  );
-}
-
-function ApiPurchaseForm({ cards, selectedCardId, onClose, onSent }: { cards: CreditCard[]; selectedCardId: string; onClose: () => void; onSent: () => void }) {
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-  const apiUrl = process.env.NEXT_PUBLIC_PURCHASE_API_URL;
-  const today = new Date();
-  const defaultDate = today.toISOString().slice(0, 10);
-  const defaultTime = today.toTimeString().slice(0, 5);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSending(true);
-    setError("");
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      banco: String(form.get("bank")).trim(),
-      valor: Number(String(form.get("amount")).replace(/\./g, "").replace(",", ".")),
-      cartao: String(form.get("card")).trim(),
-      data: String(form.get("date")),
-      hora: String(form.get("time")),
-    };
-
-    if (!apiUrl) {
-      setError("Configure NEXT_PUBLIC_PURCHASE_API_URL para habilitar o envio.");
-      setSending(false);
-      return;
-    }
-    if (!payload.banco || !payload.cartao || !Number.isFinite(payload.valor) || payload.valor <= 0) {
-      setError("Preencha banco, cartão e um valor válido.");
-      setSending(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      onSent();
-    } catch {
-      setError("Não foi possível enviar a requisição. Verifique a URL e tente novamente.");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <ModalFrame title="Enviar compra via API" eyebrow="Nova requisição POST" onClose={onClose}>
-      <form className="finance-form" onSubmit={submit}>
-        <p className="api-form-intro">Envie uma compra para o serviço conectado. O payload será enviado em JSON com os campos abaixo.</p>
-        <label>Banco<input name="bank" placeholder="Ex.: Itaú" autoFocus required /></label>
-        <div className="form-grid">
-          <label>Valor<div className="money-input"><span>R$</span><input name="amount" inputMode="decimal" placeholder="0,00" required /></div></label>
-          <label>Cartão{cards.length > 0 ? <select name="card" defaultValue={cards.find((card) => card.id === selectedCardId)?.name ?? cards[0]?.name ?? ""} required><option value="" disabled>Selecione</option>{cards.map((card) => <option value={card.name} key={card.id}>{card.name} •••• {card.last_four}</option>)}</select> : <input name="card" placeholder="Ex.: Visa final 1234" required />}</label>
-        </div>
-        <div className="form-grid"><label>Data<input name="date" type="date" defaultValue={defaultDate} required /></label><label>Hora<input name="time" type="time" defaultValue={defaultTime} required /></label></div>
-        <p className="api-endpoint-note">Destino: {apiUrl || "URL não configurada"}</p>
-        {error && <p className="form-error">{error}</p>}
-        <div className="modal-actions"><button type="button" className="button ghost" onClick={onClose}>Cancelar</button><button className="button finance-primary" disabled={sending}><Send size={16} /> {sending ? "Enviando..." : "Enviar requisição"}</button></div>
       </form>
     </ModalFrame>
   );
@@ -431,7 +365,7 @@ export default function FinancialPage() {
       <main className="dashboard finance-dashboard">
         <header className="finance-topbar">
           <div className="finance-title-row"><button className="mobile-menu" onClick={() => setMenuOpen(!menuOpen)} aria-label="Abrir menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button><div><Link className="back-link" href="/"><ArrowLeft size={15} /> Painel</Link><p className="eyebrow">Organização financeira</p><h1>Cartões e parcelas</h1></div></div>
-          <div className="finance-actions"><button className="button soft-button" onClick={() => setModal("recurring")}><RefreshCw size={17} /> Novo recorrente</button><button className="button api-button" onClick={() => setModal("api-purchase")}><Send size={17} /> Enviar via API</button><button className="button finance-primary" onClick={() => setModal(cards.length ? "purchase" : "card")}><Plus size={18} /> {cards.length ? "Nova compra" : "Adicionar cartão"}</button></div>
+          <div className="finance-actions"><button className="button soft-button" onClick={() => setModal("recurring")}><RefreshCw size={17} /> Novo recorrente</button><button className="button finance-primary" onClick={() => setModal(cards.length ? "purchase" : "card")}><Plus size={18} /> {cards.length ? "Nova compra" : "Adicionar cartão"}</button></div>
         </header>
 
         <div className="finance-tabs" role="tablist" aria-label="Seções financeiras"><button className={view === "overview" ? "active" : ""} onClick={() => setView("overview")}>Visão geral</button><button className={view === "recurring" ? "active" : ""} onClick={() => setView("recurring")}>Recorrentes</button><button className={view === "report" ? "active" : ""} onClick={() => setView("report")}>Relatório</button><span><CalendarDays size={15} /> {monthLabel}</span></div>
@@ -489,7 +423,6 @@ export default function FinancialPage() {
         {!isSupabaseConfigured && <div className="demo-notice"><span>Demonstração</span>Você pode testar cadastros e o pagamento da fatura. Configure o Supabase para salvar os dados.</div>}
       </main>
 
-      {modal === "api-purchase" && <ApiPurchaseForm cards={cards} selectedCardId={selectedCard?.id ?? ""} onClose={closeModal} onSent={() => { closeModal(); showToast("Requisição enviada com sucesso."); }} />}
       {(modal === "card" || modal === "purchase" || modal === "recurring") && <FinancialForm kind={modal} cards={cards} selectedCardId={selectedCard?.id ?? ""} editingCard={editingCard} editingPurchase={editingPurchase} editingRecurring={editingRecurring} onClose={closeModal} onSave={save} />}
       {modal === "invoice" && selectedCard && <ModalFrame title="Confirmar pagamento da fatura" eyebrow={selectedCard.name} onClose={() => setModal(null)}><div className="invoice-confirm"><span className="confirm-icon"><Check size={24} /></span><p>Ao confirmar, a parcela deste mês será marcada como paga em <strong>{selectedPurchases.filter((item) => item.installments_paid < item.installments_count).length} compras</strong>{selectedCardExpenses.length === 1 ? " e em 1 gasto da obra" : selectedCardExpenses.length > 1 ? ` e em ${selectedCardExpenses.length} gastos da obra` : ""}.</p><dl><div><dt>Valor da fatura</dt><dd>{formatMoney(selectedInvoice)}</dd></div><div><dt>Limite após pagamento</dt><dd>{formatMoney(Math.min(availableLimit + selectedInvoice, selectedCard.credit_limit_cents))}</dd></div></dl><div className="modal-actions"><button className="button ghost" onClick={() => setModal(null)}>Voltar</button><button className="button finance-primary" onClick={payInvoice}>Confirmar pagamento</button></div></div></ModalFrame>}
       {modal === "delete-purchase" && editingPurchase && <ModalFrame title="Excluir compra?" eyebrow="Esta ação não pode ser desfeita" onClose={closeModal}><div className="delete-finance-confirm"><span><AlertTriangle size={24} /></span><p>A compra <strong>{editingPurchase.description}</strong> e todo o seu histórico de parcelas serão removidos.</p><div className="modal-actions"><button className="button ghost" onClick={closeModal}>Cancelar</button><button className="button destructive-finance" disabled={deleting} onClick={deletePurchase}><Trash2 size={16} /> {deleting ? "Excluindo..." : "Excluir compra"}</button></div></div></ModalFrame>}

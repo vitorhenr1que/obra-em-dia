@@ -36,8 +36,9 @@ NEXT_PUBLIC_PURCHASE_API_URL=
 ```
 
 Na página `/financeiro`, a ação “Enviar via API” faz uma requisição `POST` para
-`NEXT_PUBLIC_PURCHASE_API_URL` com o payload JSON `banco`, `valor`, `cartao`,
-`data` e `hora`.
+`/api/compras` por padrão, com o payload JSON `banco`, `valor`, `cartao`, `data`
+e `hora`. Para encaminhar a requisição para outro serviço, defina
+`NEXT_PUBLIC_PURCHASE_API_URL`.
 
 ## Validação
 
