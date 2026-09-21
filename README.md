@@ -40,6 +40,21 @@ Na página `/financeiro`, a ação “Enviar via API” faz uma requisição `PO
 e `hora`. Para encaminhar a requisição para outro serviço, defina
 `NEXT_PUBLIC_PURCHASE_API_URL`.
 
+O endpoint também aceita o formato usado pelo Atalhos do iPhone, com o
+dicionário `Dados` dentro da chave `data`:
+
+```json
+{
+  "data": {
+    "banco": "Itaú",
+    "valor": 149.90,
+    "cartao": "Visa final 1234",
+    "data": "21/09/2026",
+    "hora": "14:30"
+  }
+}
+```
+
 ## Validação
 
 ```bash
