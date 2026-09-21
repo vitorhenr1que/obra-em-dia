@@ -32,7 +32,12 @@ Variáveis necessárias:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_PURCHASE_API_URL=
 ```
+
+Na página `/financeiro`, a ação “Enviar via API” faz uma requisição `POST` para
+`NEXT_PUBLIC_PURCHASE_API_URL` com o payload JSON `banco`, `valor`, `cartao`,
+`data` e `hora`.
 
 ## Validação
 
