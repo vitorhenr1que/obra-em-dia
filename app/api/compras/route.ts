@@ -8,12 +8,37 @@ type PurchasePayload = {
   hora: unknown;
 };
 
+function parseNestedJson(value: unknown): unknown {
+  let parsed = value;
+
+  for (let attempt = 0; attempt < 3 && typeof parsed === "string"; attempt += 1) {
+    const text = parsed.trim();
+    if (!text) return text;
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      const unescaped = text.replace(/\\"/g, '"').replace(/\\\//g, "/");
+      if (unescaped === text) return parsed;
+      parsed = unescaped;
+    }
+  }
+
+  return parsed;
+}
+
 function unwrapPayload(value: unknown): PurchasePayload {
   if (typeof value === "object" && value !== null && "data" in value) {
-    const wrapped = (value as { data?: unknown }).data;
+    const wrapped = parseNestedJson((value as { data?: unknown }).data);
     if (typeof wrapped === "object" && wrapped !== null) return wrapped as PurchasePayload;
   }
-  return value as PurchasePayload;
+  return parseNestedJson(value) as PurchasePayload;
+}
+
+function normalizeAmount(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string" || !value.trim()) return Number.NaN;
+  const normalized = value.trim().replace(/^R\$\s?/, "").replace(/\./g, "").replace(",", ".");
+  return Number(normalized);
 }
 
 function normalizeDate(value: unknown) {
@@ -54,7 +79,7 @@ export async function POST(request: Request) {
 
   const banco = typeof body.banco === "string" ? body.banco.trim() : "";
   const cartao = typeof body.cartao === "string" ? body.cartao.trim() : "";
-  const valor = typeof body.valor === "number" ? body.valor : Number(body.valor);
+  const valor = normalizeAmount(body.valor);
   const data = normalizeDate(body.data);
   const hora = normalizeTime(body.hora);
 
