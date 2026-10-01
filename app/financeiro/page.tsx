@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sparkles,
+  TableProperties,
   TrendingUp,
   Trash2,
   WalletCards,
@@ -61,6 +62,23 @@ function expenseInstallmentValue(expense: Expense) {
 
 function expenseRemainingValue(expense: Expense) {
   return expenseInstallmentValue(expense) * (expense.card_installments_count - expense.card_installments_paid);
+}
+
+function parseDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day || 1);
+}
+
+function addMonths(date: Date, amount: number) {
+  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthShort(date: Date) {
+  return new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date).replace(".", "");
 }
 
 function ModalFrame({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode }) {
@@ -189,12 +207,40 @@ export default function FinancialPage() {
   const availableLimit = Math.max((selectedCard?.credit_limit_cents ?? 0) - selectedOutstanding, 0);
   const utilization = selectedCard ? Math.min(Math.round((selectedOutstanding / selectedCard.credit_limit_cents) * 100), 100) : 0;
 
-  const categories = useMemo(() => {
-    const values = new Map<string, number>();
-    purchases.filter((item) => item.status === "active").forEach((item) => values.set(item.category, (values.get(item.category) ?? 0) + remainingValue(item)));
-    unpaidCardExpenses.forEach((item) => values.set(item.category, (values.get(item.category) ?? 0) + expenseRemainingValue(item)));
-    return [...values.entries()].sort((a, b) => b[1] - a[1]);
-  }, [purchases, unpaidCardExpenses]);
+  const installmentReport = useMemo(() => {
+    const purchaseRows = purchases
+      .filter((purchase) => purchase.status === "active" && purchase.installments_paid < purchase.installments_count)
+      .map((purchase) => ({
+        id: `purchase-${purchase.id}`,
+        name: purchase.description,
+        detail: `${cards.find((card) => card.id === purchase.card_id)?.name ?? "Cartão"} · ${purchase.category}`,
+        paid: purchase.installments_paid,
+        count: purchase.installments_count,
+        installment: installmentValue(purchase),
+        remaining: remainingValue(purchase),
+        firstDate: parseDate(purchase.first_installment_on),
+        tone: "purple" as const,
+      }));
+    const expenseRows = unpaidCardExpenses.map((expense) => ({
+      id: `expense-${expense.id}`,
+      name: expense.item_name || expense.description,
+      detail: `${cards.find((card) => card.id === expense.card_id)?.name ?? "Cartão"} · Obra`,
+      paid: expense.card_installments_paid,
+      count: expense.card_installments_count,
+      installment: expenseInstallmentValue(expense),
+      remaining: expenseRemainingValue(expense),
+      firstDate: parseDate(expense.spent_on),
+      tone: "amber" as const,
+    }));
+    return [...purchaseRows, ...expenseRows].sort((a, b) => b.remaining - a.remaining);
+  }, [purchases, unpaidCardExpenses, cards]);
+
+  const reportMonths = useMemo(() => Array.from({ length: 12 }, (_, index) => addMonths(new Date(), index)), []);
+  const monthlyProjection = useMemo(() => reportMonths.map((month) => installmentReport.reduce((sum, row) => {
+    const nextInstallment = addMonths(row.firstDate, row.paid);
+    const distance = (month.getFullYear() - nextInstallment.getFullYear()) * 12 + month.getMonth() - nextInstallment.getMonth();
+    return distance >= 0 && distance < row.count - row.paid ? sum + row.installment : sum;
+  }, 0)), [installmentReport, reportMonths]);
 
   function showToast(message: string) {
     setToast(message);
@@ -414,10 +460,34 @@ export default function FinancialPage() {
           <div className="recurring-list">{recurring.map((item) => <article className={item.status === "paused" ? "paused" : ""} key={item.id}><span className={`recurring-icon ${item.category.toLowerCase()}`}>{item.category === "Investimento" ? <TrendingUp size={19} /> : item.category === "Assinatura" ? <Sparkles size={19} /> : <Landmark size={19} />}</span><div><strong>{item.name}</strong><small>{item.category} · todo dia {item.billing_day}{item.card_id ? ` · ${cards.find((card) => card.id === item.card_id)?.name ?? "Cartão"}` : ""}</small></div><span className="recurring-value"><strong>{formatMoney(item.amount_cents)}</strong><small>por mês</small></span><div className="recurring-actions"><button className="pause-button" onClick={() => toggleRecurring(item)}>{item.status === "active" ? "Pausar" : "Reativar"}</button><button onClick={() => openRecurringEditor(item)} aria-label={`Editar ${item.name}`}><Pencil size={15} /></button><button className="danger-link" onClick={() => { setEditingRecurring(item); setModal("delete-recurring"); }} aria-label={`Excluir ${item.name}`}><Trash2 size={15} /></button></div></article>)}</div>
         </section>}
 
-        {view === "report" && <section className="report-grid">
-          <article className="report-main"><div className="section-heading"><div><p className="eyebrow">Projeção</p><h2>Parcelas dos próximos 6 meses</h2></div><span className="report-pill">{formatMoney(totalOutstanding)} a pagar</span></div><div className="bar-chart">{[100, 82, 72, 58, 42, 28].map((height, index) => <div key={height}><span><i style={{ height: `${height}%` }} /></span><small>{["Set", "Out", "Nov", "Dez", "Jan", "Fev"][index]}</small></div>)}</div><p className="report-note">A projeção diminui conforme suas parcelas terminam. Gastos recorrentes não estão incluídos nas barras.</p></article>
-          <article className="category-report"><p className="eyebrow">Por categoria</p><h2>Onde está o saldo parcelado</h2><div>{categories.map(([name, value], index) => <div className="category-row" key={name}><span className={`category-dot c${index}`} /><span><strong>{name}</strong><small>{Math.round((value / Math.max(totalOutstanding, 1)) * 100)}% do saldo</small></span><strong>{formatMoney(value)}</strong></div>)}</div></article>
-          <article className="report-highlight"><span><PiggyBank size={24} /></span><div><p className="eyebrow">Leitura rápida</p><h2>Seu limite será liberado gradualmente</h2><p>A cada fatura paga, uma parcela de cada compra é concluída e o mesmo valor volta a ficar disponível no cartão.</p></div></article>
+        {view === "report" && <section className="installment-report">
+          <div className="report-hero">
+            <div><span className="report-hero-icon"><TableProperties size={23} /></span><div><p className="eyebrow">Mapa de parcelamentos</p><h2>Quanto falta de cada compra</h2><p>Veja em quais meses cada parcela ainda pesa no orçamento.</p></div></div>
+            <div className="report-hero-total"><span>Saldo total parcelado</span><strong>{formatMoney(totalOutstanding)}</strong><small>{installmentReport.length} {installmentReport.length === 1 ? "compra em andamento" : "compras em andamento"}</small></div>
+          </div>
+
+          <div className="report-kpis">
+            <article><span>Próximo mês</span><strong>{formatMoney(monthlyProjection[0] ?? 0)}</strong><small>em parcelas previstas</small></article>
+            <article><span>Parcelas restantes</span><strong>{installmentReport.reduce((sum, row) => sum + row.count - row.paid, 0)}</strong><small>somando todas as compras</small></article>
+            <article><span>Maior saldo</span><strong>{installmentReport[0]?.name ?? "—"}</strong><small>{installmentReport[0] ? formatMoney(installmentReport[0].remaining) : "Nenhuma compra parcelada"}</small></article>
+          </div>
+
+          <article className="installment-matrix-card">
+            <div className="section-heading"><div><p className="eyebrow">Próximos 12 meses</p><h2>Cronograma das parcelas</h2></div><span className="report-pill">Valores por mês</span></div>
+            {installmentReport.length === 0 ? <div className="finance-empty"><Sparkles size={25} /><strong>Nenhuma parcela pendente</strong><p>As compras parceladas aparecerão aqui com o cronograma completo.</p></div> : <div className="matrix-scroll"><table className="installment-matrix">
+              <thead><tr><th>Compra</th><th>Andamento</th><th>Saldo</th>{reportMonths.map((month) => <th key={monthKey(month)}><span>{monthShort(month)}</span><small>{month.getFullYear()}</small></th>)}</tr></thead>
+              <tbody>{installmentReport.map((row) => {
+                const nextInstallment = addMonths(row.firstDate, row.paid);
+                return <tr key={row.id}><th scope="row"><span className={`matrix-type ${row.tone}`}><ShoppingCart size={15} /></span><span><strong>{row.name}</strong><small>{row.detail}</small></span></th><td><strong>{row.paid}/{row.count}</strong><small>faltam {row.count - row.paid}</small></td><td><strong>{formatMoney(row.remaining)}</strong><small>{formatMoney(row.installment)}/mês</small></td>{reportMonths.map((month) => {
+                  const distance = (month.getFullYear() - nextInstallment.getFullYear()) * 12 + month.getMonth() - nextInstallment.getMonth();
+                  const active = distance >= 0 && distance < row.count - row.paid;
+                  return <td key={monthKey(month)}>{active ? <span className="matrix-value">{formatMoney(row.installment)}</span> : <span className="matrix-empty">—</span>}</td>;
+                })}</tr>;
+              })}</tbody>
+              <tfoot><tr><th colSpan={3}>Total previsto no mês</th>{monthlyProjection.map((value, index) => <td key={monthKey(reportMonths[index])}><strong>{value ? formatMoney(value) : "—"}</strong></td>)}</tr></tfoot>
+            </table></div>}
+          </article>
+          <p className="report-footnote"><span /> A projeção considera as parcelas ainda não pagas. Assinaturas e outros gastos recorrentes não entram neste relatório.</p>
         </section>}
 
         {!isSupabaseConfigured && <div className="demo-notice"><span>Demonstração</span>Você pode testar cadastros e o pagamento da fatura. Configure o Supabase para salvar os dados.</div>}
