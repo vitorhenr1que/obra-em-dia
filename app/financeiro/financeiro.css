@@ -120,6 +120,7 @@
 .card-expense-row > span:nth-child(2) strong, .card-expense-row > strong { font-size: 12px; }
 .card-expense-row > span:nth-child(2) small { margin-top: 4px; color: var(--finance-muted); font-size: 10px; }
 .card-expense-row .purchase-icon { color: #965c1d; background: #fff0dd; }
+.card-expense-row .recurring-charge-icon { color: #276d9a; background: #e6f3fb; }
 .card-expense-values { text-align: right; }
 .card-expense-values strong, .card-expense-values small, .card-expense-values em { display: block; }
 .card-expense-values strong { font-size: 12px; }
