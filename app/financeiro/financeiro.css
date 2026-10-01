@@ -191,6 +191,14 @@
 .report-kpis small { margin-top: 4px; color: var(--finance-muted); font-size: 10px; }
 .installment-matrix-card { padding: 22px 0 0; overflow: hidden; border: 1px solid var(--finance-line); border-radius: 19px; background: #fff; }
 .installment-matrix-card > .section-heading { padding: 0 22px 18px; }
+.report-table-heading { align-items: flex-end; }
+.report-card-filter { max-width: 66%; display: flex; align-items: stretch; justify-content: flex-end; gap: 7px; overflow-x: auto; padding: 3px; scrollbar-width: thin; }
+.report-card-filter button { min-width: max-content; padding: 8px 11px; border: 1px solid #e6e0ec; border-radius: 10px; color: #6f6875; background: #faf9fb; cursor: pointer; font: inherit; font-size: 10px; font-weight: 750; text-align: left; transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease; }
+.report-card-filter button small { display: block; margin-top: 2px; color: #9b94a1; font-size: 8px; font-weight: 600; }
+.report-card-filter button:hover { border-color: #cfc1eb; color: #5c3daf; background: #f7f3ff; }
+.report-card-filter button:focus-visible { outline: 3px solid rgba(111,69,232,.18); outline-offset: 2px; }
+.report-card-filter button.active { border-color: #7550d7; color: #fff; background: #6843c8; box-shadow: 0 5px 14px rgba(87,55,166,.18); }
+.report-card-filter button.active small { color: #d9cdf2; }
 .matrix-scroll { overflow-x: auto; border-top: 1px solid var(--finance-line); scrollbar-color: #c9bfdc #f5f2f8; scrollbar-width: thin; }
 .installment-matrix { width: 100%; min-width: 1480px; border-collapse: separate; border-spacing: 0; font-size: 11px; }
 .installment-matrix th, .installment-matrix td { padding: 13px 12px; border-right: 1px solid #eeeaf2; border-bottom: 1px solid #eeeaf2; text-align: center; white-space: nowrap; }
@@ -204,6 +212,10 @@
 .installment-matrix tbody th > span:last-child strong, .installment-matrix tbody th > span:last-child small, .installment-matrix tbody td > strong, .installment-matrix tbody td > small { display: block; }
 .installment-matrix tbody th strong { max-width: 178px; overflow: hidden; color: var(--finance-ink); font-size: 11px; text-overflow: ellipsis; }
 .installment-matrix tbody th small, .installment-matrix tbody td small { margin-top: 4px; color: var(--finance-muted); font-size: 9px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.installment-matrix .matrix-card-group th { position: sticky; left: 0; z-index: 1; min-width: 0; padding: 10px 14px; display: flex; align-items: center; gap: 10px; border-top: 8px solid #f6f3f8; border-right: 0; color: #554b60; background: #f0edf4; }
+.installment-matrix .matrix-card-group:first-child th { border-top-width: 0; }
+.matrix-card-group th > span { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .055em; }
+.installment-matrix .matrix-card-group th > small { margin: 0; padding-left: 10px; border-left: 1px solid #d8d1df; color: #857d8c; font-size: 9px; }
 .matrix-type { width: 31px; height: 31px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; color: #6843ce; background: #f0ebff; }
 .matrix-type.amber { color: #965c1d; background: #fff0dd; }
 .matrix-value { display: inline-block; padding: 6px 8px; border-radius: 7px; color: #51328f; background: #eee8fb; font-size: 10px; font-weight: 750; }
@@ -261,6 +273,8 @@
   .report-hero-total { min-width: 170px; padding-left: 18px; }
   .report-kpis { grid-template-columns: 1fr; gap: 9px; }
   .report-kpis article { padding: 15px 18px; }
+  .report-table-heading { display: block; }
+  .report-card-filter { max-width: none; margin-top: 15px; justify-content: flex-start; }
   .finance-modal { padding: 22px; }
 }
 

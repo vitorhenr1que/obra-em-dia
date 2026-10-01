@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Fragment, FormEvent, useEffect, useMemo, useState } from "react";
 import { demoCards, demoProject, demoPurchases, demoRecurringExpenses } from "@/lib/demo-data";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { CardPurchase, CreditCard, Expense, RecurringExpense } from "@/lib/types";
@@ -157,6 +157,7 @@ export default function FinancialPage() {
   const [recurring, setRecurring] = useState<RecurringExpense[]>(isSupabaseConfigured ? [] : demoRecurringExpenses);
   const [cardExpenses, setCardExpenses] = useState<Expense[]>(isSupabaseConfigured ? [] : demoProject.expenses);
   const [selectedCardId, setSelectedCardId] = useState(isSupabaseConfigured ? "" : demoCards[0]?.id ?? "");
+  const [reportCardId, setReportCardId] = useState("all");
   const [view, setView] = useState<View>("overview");
   const [modal, setModal] = useState<Modal>(null);
   const [editingCard, setEditingCard] = useState<CreditCard | null>(null);
@@ -214,6 +215,7 @@ export default function FinancialPage() {
         id: `purchase-${purchase.id}`,
         name: purchase.description,
         detail: `${cards.find((card) => card.id === purchase.card_id)?.name ?? "Cartão"} · ${purchase.category}`,
+        cardId: purchase.card_id,
         paid: purchase.installments_paid,
         count: purchase.installments_count,
         installment: installmentValue(purchase),
@@ -225,6 +227,7 @@ export default function FinancialPage() {
       id: `expense-${expense.id}`,
       name: expense.item_name || expense.description,
       detail: `${cards.find((card) => card.id === expense.card_id)?.name ?? "Cartão"} · Obra`,
+      cardId: expense.card_id as string,
       paid: expense.card_installments_paid,
       count: expense.card_installments_count,
       installment: expenseInstallmentValue(expense),
@@ -232,15 +235,24 @@ export default function FinancialPage() {
       firstDate: parseDate(expense.spent_on),
       tone: "amber" as const,
     }));
-    return [...purchaseRows, ...expenseRows].sort((a, b) => b.remaining - a.remaining);
+    return [...purchaseRows, ...expenseRows].sort((a, b) => {
+      const cardOrder = cards.findIndex((card) => card.id === a.cardId) - cards.findIndex((card) => card.id === b.cardId);
+      return cardOrder || b.remaining - a.remaining;
+    });
   }, [purchases, unpaidCardExpenses, cards]);
 
+  const visibleInstallmentReport = useMemo(
+    () => reportCardId === "all" ? installmentReport : installmentReport.filter((row) => row.cardId === reportCardId),
+    [installmentReport, reportCardId],
+  );
+  const visibleOutstanding = visibleInstallmentReport.reduce((sum, row) => sum + row.remaining, 0);
+
   const reportMonths = useMemo(() => Array.from({ length: 12 }, (_, index) => addMonths(new Date(), index)), []);
-  const monthlyProjection = useMemo(() => reportMonths.map((month) => installmentReport.reduce((sum, row) => {
+  const monthlyProjection = useMemo(() => reportMonths.map((month) => visibleInstallmentReport.reduce((sum, row) => {
     const nextInstallment = addMonths(row.firstDate, row.paid);
     const distance = (month.getFullYear() - nextInstallment.getFullYear()) * 12 + month.getMonth() - nextInstallment.getMonth();
     return distance >= 0 && distance < row.count - row.paid ? sum + row.installment : sum;
-  }, 0)), [installmentReport, reportMonths]);
+  }, 0)), [visibleInstallmentReport, reportMonths]);
 
   function showToast(message: string) {
     setToast(message);
@@ -463,26 +475,29 @@ export default function FinancialPage() {
         {view === "report" && <section className="installment-report">
           <div className="report-hero">
             <div><span className="report-hero-icon"><TableProperties size={23} /></span><div><p className="eyebrow">Mapa de parcelamentos</p><h2>Quanto falta de cada compra</h2><p>Veja em quais meses cada parcela ainda pesa no orçamento.</p></div></div>
-            <div className="report-hero-total"><span>Saldo total parcelado</span><strong>{formatMoney(totalOutstanding)}</strong><small>{installmentReport.length} {installmentReport.length === 1 ? "compra em andamento" : "compras em andamento"}</small></div>
+            <div className="report-hero-total"><span>{reportCardId === "all" ? "Saldo total parcelado" : "Saldo neste cartão"}</span><strong>{formatMoney(visibleOutstanding)}</strong><small>{visibleInstallmentReport.length} {visibleInstallmentReport.length === 1 ? "compra em andamento" : "compras em andamento"}</small></div>
           </div>
 
           <div className="report-kpis">
             <article><span>Próximo mês</span><strong>{formatMoney(monthlyProjection[0] ?? 0)}</strong><small>em parcelas previstas</small></article>
-            <article><span>Parcelas restantes</span><strong>{installmentReport.reduce((sum, row) => sum + row.count - row.paid, 0)}</strong><small>somando todas as compras</small></article>
-            <article><span>Maior saldo</span><strong>{installmentReport[0]?.name ?? "—"}</strong><small>{installmentReport[0] ? formatMoney(installmentReport[0].remaining) : "Nenhuma compra parcelada"}</small></article>
+            <article><span>Parcelas restantes</span><strong>{visibleInstallmentReport.reduce((sum, row) => sum + row.count - row.paid, 0)}</strong><small>somando as compras exibidas</small></article>
+            <article><span>Maior saldo</span><strong>{[...visibleInstallmentReport].sort((a, b) => b.remaining - a.remaining)[0]?.name ?? "—"}</strong><small>{visibleInstallmentReport.length ? formatMoney(Math.max(...visibleInstallmentReport.map((row) => row.remaining))) : "Nenhuma compra parcelada"}</small></article>
           </div>
 
           <article className="installment-matrix-card">
-            <div className="section-heading"><div><p className="eyebrow">Próximos 12 meses</p><h2>Cronograma das parcelas</h2></div><span className="report-pill">Valores por mês</span></div>
-            {installmentReport.length === 0 ? <div className="finance-empty"><Sparkles size={25} /><strong>Nenhuma parcela pendente</strong><p>As compras parceladas aparecerão aqui com o cronograma completo.</p></div> : <div className="matrix-scroll"><table className="installment-matrix">
+            <div className="section-heading report-table-heading"><div><p className="eyebrow">Próximos 12 meses</p><h2>Cronograma das parcelas</h2></div><div className="report-card-filter" role="group" aria-label="Filtrar relatório por cartão"><button className={reportCardId === "all" ? "active" : ""} onClick={() => setReportCardId("all")} aria-pressed={reportCardId === "all"}>Todos</button>{cards.map((card) => <button className={reportCardId === card.id ? "active" : ""} onClick={() => setReportCardId(card.id)} aria-pressed={reportCardId === card.id} key={card.id}>{card.name}<small>•••• {card.last_four}</small></button>)}</div></div>
+            {visibleInstallmentReport.length === 0 ? <div className="finance-empty"><Sparkles size={25} /><strong>Nenhuma parcela pendente</strong><p>Não há compras parceladas em andamento para este cartão.</p></div> : <div className="matrix-scroll"><table className="installment-matrix">
               <thead><tr><th>Compra</th><th>Andamento</th><th>Saldo</th>{reportMonths.map((month) => <th key={monthKey(month)}><span>{monthShort(month)}</span><small>{month.getFullYear()}</small></th>)}</tr></thead>
-              <tbody>{installmentReport.map((row) => {
+              <tbody>{visibleInstallmentReport.map((row, index) => {
                 const nextInstallment = addMonths(row.firstDate, row.paid);
-                return <tr key={row.id}><th scope="row"><span className={`matrix-type ${row.tone}`}><ShoppingCart size={15} /></span><span><strong>{row.name}</strong><small>{row.detail}</small></span></th><td><strong>{row.paid}/{row.count}</strong><small>faltam {row.count - row.paid}</small></td><td><strong>{formatMoney(row.remaining)}</strong><small>{formatMoney(row.installment)}/mês</small></td>{reportMonths.map((month) => {
+                const card = cards.find((item) => item.id === row.cardId);
+                const cardRows = visibleInstallmentReport.filter((item) => item.cardId === row.cardId);
+                const startsCardGroup = index === 0 || visibleInstallmentReport[index - 1].cardId !== row.cardId;
+                return <Fragment key={row.id}>{startsCardGroup && <tr className="matrix-card-group"><th colSpan={15}><span><CreditCardIcon size={14} />{card?.name ?? "Cartão"}</span><small>•••• {card?.last_four ?? "—"} · {cardRows.length} {cardRows.length === 1 ? "compra" : "compras"}</small></th></tr>}<tr><th scope="row"><span className={`matrix-type ${row.tone}`}><ShoppingCart size={15} /></span><span><strong>{row.name}</strong><small>{row.detail}</small></span></th><td><strong>{row.paid}/{row.count}</strong><small>faltam {row.count - row.paid}</small></td><td><strong>{formatMoney(row.remaining)}</strong><small>{formatMoney(row.installment)}/mês</small></td>{reportMonths.map((month) => {
                   const distance = (month.getFullYear() - nextInstallment.getFullYear()) * 12 + month.getMonth() - nextInstallment.getMonth();
                   const active = distance >= 0 && distance < row.count - row.paid;
                   return <td key={monthKey(month)}>{active ? <span className="matrix-value">{formatMoney(row.installment)}</span> : <span className="matrix-empty">—</span>}</td>;
-                })}</tr>;
+                })}</tr></Fragment>;
               })}</tbody>
               <tfoot><tr><th colSpan={3}>Total previsto no mês</th>{monthlyProjection.map((value, index) => <td key={monthKey(reportMonths[index])}><strong>{value ? formatMoney(value) : "—"}</strong></td>)}</tr></tfoot>
             </table></div>}
